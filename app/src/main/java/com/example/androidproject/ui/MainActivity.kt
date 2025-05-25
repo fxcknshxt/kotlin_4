@@ -18,6 +18,12 @@ import com.example.androidproject.data.FileNotebook
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Scaffold
 import com.example.androidproject.ui.theme.AndroidProjectTheme
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
+
 
 class MainActivity : ComponentActivity() {
     private val fileNotebook: FileNotebook = FileNotebook(context = this)
@@ -27,16 +33,34 @@ class MainActivity : ComponentActivity() {
 
         fileNotebook.loadFromFile()
 
-        val newNote = Note(title = "New Title", content = "New Content")
-        fileNotebook.addNote(newNote)
-
-        fileNotebook.saveToFile()
-
-        fileNotebook.scheduleNoteDeletion("some-uid", 60000L)
-
         setContent {
             AndroidProjectTheme {
-                NoteListScreen(notes = fileNotebook.getNotes(), fileNotebook = fileNotebook)
+
+                val navController = rememberNavController()
+
+                NavHost(navController = navController, startDestination = "noteList") {
+                    composable("noteList") {
+                        NoteListScreen(notes = fileNotebook.getNotes(), fileNotebook = fileNotebook, navController = navController)
+                    }
+                    composable(
+                        route = "editNote/{noteId}",
+                        arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val noteId = backStackEntry.arguments?.getString("noteId")
+                        val note = fileNotebook.getNotes().find { it.uid == noteId }
+                        note?.let {
+                            EditNoteScreen(
+                                state = NoteState(note = it),
+                                onSave = { updatedNote ->
+                                    fileNotebook.removeNote(it.uid)
+                                    fileNotebook.addNote(updatedNote)
+                                    fileNotebook.saveToFile()
+                                    navController.navigateUp()
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -44,7 +68,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun NoteListScreen(notes: List<Note>, fileNotebook: FileNotebook) {
+fun NoteListScreen(notes: List<Note>, fileNotebook: FileNotebook, navController: androidx.navigation.NavController) {
     Scaffold { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             Button(
@@ -60,7 +84,9 @@ fun NoteListScreen(notes: List<Note>, fileNotebook: FileNotebook) {
             LazyColumn {
                 items(notes) { note ->
                     Text(note.title)
-                    Button(onClick = {}) {
+                    Button(onClick = {
+                        navController.navigate("editNote/${note.uid}")
+                    }) {
                         Text("Edit")
                     }
                 }
@@ -73,12 +99,14 @@ fun NoteListScreen(notes: List<Note>, fileNotebook: FileNotebook) {
 @Composable
 fun PreviewGreeting() {
     val fileNotebook = FileNotebook(context = LocalContext.current)
+    val navController = rememberNavController()
 
     NoteListScreen(
         notes = listOf(
             Note(title = "Example_Title", content = "Example_Content")
         ),
-        fileNotebook = fileNotebook
+        fileNotebook = fileNotebook,
+        navController = navController
     )
 }
 
