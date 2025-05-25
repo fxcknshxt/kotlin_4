@@ -4,6 +4,7 @@ import android.graphics.Color
 import org.json.JSONObject
 import java.util.UUID
 
+
 data class Note(
     val uid: String = UUID.randomUUID().toString(),
     val title: String,
@@ -32,8 +33,15 @@ data class Note(
         json.put("uid", uid)
         json.put("title", title)
         json.put("content", content)
-        if (color != Color.WHITE) json.put("color", color)
-        if (importance != Importance.NORMAL) json.put("importance", importance.name)
+
+        if (color != Color.WHITE) {
+            json.put("color", color)
+        }
+
+        if (importance != Importance.NORMAL) {
+            json.put("importance", importance.name)
+        }
+
         return json
     }
 }
