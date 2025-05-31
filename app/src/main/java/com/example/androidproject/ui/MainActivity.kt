@@ -18,19 +18,20 @@ import com.example.androidproject.data.FileNotebook
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Scaffold
 import com.example.androidproject.ui.theme.AndroidProjectTheme
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 
 
 class MainActivity : ComponentActivity() {
-    private val fileNotebook: FileNotebook = FileNotebook(context = this)
+    private lateinit var fileNotebook: FileNotebook
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        fileNotebook = FileNotebook(this)
         fileNotebook.loadFromFile()
 
         setContent {

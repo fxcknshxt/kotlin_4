@@ -1,12 +1,10 @@
 package com.example.androidproject.ui
 
-import android.widget.DatePicker
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,32 +37,36 @@ fun DateSelector(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                        onDateSelected(calendar.time)
-                        showDatePicker = false
-                    })
-                { Text("OK") }
+                    onDateSelected(calendar.time)
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }
-                ) { Text("Cancel") }
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
             }
         ) {
             DatePicker(
                 state = rememberDatePickerState(
                     initialSelectedDateMillis = calendar.timeInMillis
-                ),
-                onDateSelected = { millis: Long ->
-                    calendar.timeInMillis = millis
-                }
+                )
             )
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
 fun DateSelectorPreview() {
+    val calendar = Calendar.getInstance()
+
     DateSelector(
-        selectedDate = Calendar.getInstance().time,
-        onDateSelected = {}
+        selectedDate = calendar.time,
+        onDateSelected = { selectedDate ->
+            println("Selected Date: $selectedDate")
+        }
     )
 }
+

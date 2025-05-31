@@ -97,5 +97,11 @@ private fun CustomColorPicker(
     onColorSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-
+    Column {
+        Text("Select Custom Color")
+        ColorPicker(selectedColor = initialColor, onColorSelected = onColorSelected)
+        Button(onClick = { onDismiss() }) {
+            Text("Dismiss")
+        }
+    }
 }

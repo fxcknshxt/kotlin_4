@@ -21,7 +21,7 @@ fun EditNoteScreen(
     var color by remember { mutableStateOf(state.note.color) }
     var importance by remember { mutableStateOf(state.note.importance) }
 
-    Column(modifier = modifier.padding(16.dp)) {
+    Column(modifier = modifier.padding(16.dp).fillMaxSize()) {
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
