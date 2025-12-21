@@ -4,79 +4,114 @@ import android.content.Context
 import org.json.JSONArray
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.Timer
-import java.util.TimerTask
 import com.example.androidproject.domain.Note
-
 
 class FileNotebook(private val context: Context) {
     private val logger = LoggerFactory.getLogger(FileNotebook::class.java)
-    private val notes = mutableListOf<Note>()
-    private val notesFile by lazy { File(context.filesDir, "notes.json") }
+    private var _notes: List<Note> = emptyList()
+
+    val notes: List<Note>
+        get() = _notes
+
+    private val notesFile by lazy {
+        File(context.filesDir, "notes.json").apply {
+            parentFile?.mkdirs()
+        }
+    }
 
     init {
         logger.info("FileNotebook initialized with path: ${context.filesDir}")
+        loadFromFile()
     }
 
-    fun getNotes(): List<Note> {
-        return notes
-    }
-
-    fun addNote(note: Note) {
-        notes.add(note)
-        logger.debug("Note added: ${note.title}")
+    fun addNote(note: Note): Boolean {
+        return try {
+            _notes = _notes + note
+            saveToFile()
+            logger.info("Note added: ${note.title}")
+            true
+        } catch (e: Exception) {
+            logger.error("Error adding note", e)
+            false
+        }
     }
 
     fun removeNote(uid: String): Boolean {
-        val result = notes.removeIf { it.uid == uid }
-        if (result) {
-            logger.debug("Note removed with uid: $uid")
+        val noteToRemove = _notes.find { it.uid == uid }
+        return if (noteToRemove != null) {
+            _notes = _notes.filter { it.uid != uid }
+            saveToFile()
+            logger.info("Note removed: ${noteToRemove.title}")
+            true
         } else {
-            logger.warn("Note with uid $uid not found for removal")
+            logger.warn("Note with uid $uid not found")
+            false
         }
-        return result
     }
 
-    fun saveToFile() {
-        try {
+    fun updateNote(updatedNote: Note): Boolean {
+        val index = _notes.indexOfFirst { it.uid == updatedNote.uid }
+        return if (index != -1) {
+            val newList = _notes.toMutableList()
+            newList[index] = updatedNote
+            _notes = newList
+            saveToFile()
+            logger.info("Note updated: ${updatedNote.title}")
+            true
+        } else {
+            logger.warn("Note with uid ${updatedNote.uid} not found for update")
+            false
+        }
+    }
+
+    fun getNote(uid: String): Note? {
+        return _notes.find { it.uid == uid }
+    }
+
+    private fun saveToFile(): Boolean {
+        return try {
             val jsonArray = JSONArray().apply {
-                notes.forEach { put(it.toJson()) }
-            }
-            notesFile.writeText(jsonArray.toString())
-            logger.info("Notes saved to file. Total notes: ${notes.size}")
-        } catch (e: Exception) {
-            logger.error("Error saving notes to file", e)
-        }
-    }
-
-    fun loadFromFile() {
-        try {
-            if (!notesFile.exists()) {
-                logger.info("No notes file found at ${notesFile.path}")
-                return
-            }
-
-            notes.clear()
-            JSONArray(notesFile.readText()).let { jsonArray ->
-                for (i in 0 until jsonArray.length()) {
-                    Note.parse(jsonArray.getJSONObject(i))?.let { note ->
-                        notes.add(note)
-                    }
+                _notes.forEach { note ->
+                    put(note.toJson())
                 }
             }
-            logger.info("Notes loaded from file. Total notes: ${notes.size}")
+            notesFile.writeText(jsonArray.toString())
+            logger.info("Notes saved to file. Total notes: ${_notes.size}")
+            true
         } catch (e: Exception) {
-            logger.error("Error loading notes from file", e)
+            logger.error("Error saving notes to file", e)
+            false
         }
     }
 
-    fun scheduleNoteDeletion(uid: String, delayMillis: Long = 60000) {
-        Timer().schedule(object : TimerTask() {
-            override fun run() {
-                Thread {
-                    removeNote(uid)
-                }.start()
+    fun loadFromFile(): Boolean {
+        return try {
+            if (!notesFile.exists()) {
+                logger.info("No notes file found at ${notesFile.path}")
+                return false
             }
-        }, delayMillis)
+
+            val jsonText = notesFile.readText()
+            if (jsonText.isBlank()) {
+                logger.info("Notes file is empty")
+                return false
+            }
+
+            val jsonArray = JSONArray(jsonText)
+            val loadedNotes = mutableListOf<Note>()
+
+            for (i in 0 until jsonArray.length()) {
+                Note.parse(jsonArray.getJSONObject(i))?.let { note ->
+                    loadedNotes.add(note)
+                }
+            }
+
+            _notes = loadedNotes
+            logger.info("Notes loaded from file. Total notes: ${_notes.size}")
+            true
+        } catch (e: Exception) {
+            logger.error("Error loading notes from file", e)
+            false
+        }
     }
 }
