@@ -10,15 +10,19 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.androidproject.presentation.screens.EditNoteScreen
 import com.example.androidproject.presentation.screens.NotesListScreen
-import com.example.androidproject.presentation.viewmodel.NotesViewModel
+import com.example.androidproject.presentation.viewmodel.SimpleNotesViewModel
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    val viewModel: NotesViewModel = viewModel(
-        factory = NotesViewModel.Factory(context)
+    val viewModel: SimpleNotesViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return SimpleNotesViewModel(context) as T
+            }
+        }
     )
 
     NavHost(
@@ -27,13 +31,13 @@ fun AppNavigation() {
     ) {
         composable(Routes.NOTES_LIST) {
             NotesListScreen(
+                viewModel = viewModel,
                 onNoteClick = { noteId ->
                     navController.navigate(Routes.editNoteWithId(noteId))
                 },
                 onAddNoteClick = {
                     navController.navigate(Routes.ADD_NOTE)
-                },
-                viewModel = viewModel
+                }
             )
         }
 
@@ -44,7 +48,7 @@ fun AppNavigation() {
             )
         ) { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId")
-            val note = noteId?.let { viewModel.getNote(it) }
+            val note = noteId?.let { viewModel.getNoteById(it) }
 
             EditNoteScreen(
                 note = note,

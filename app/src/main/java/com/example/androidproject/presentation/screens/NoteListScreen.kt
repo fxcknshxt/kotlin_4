@@ -7,26 +7,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.androidproject.presentation.components.SimpleNoteItem
-import com.example.androidproject.presentation.viewmodel.NotesViewModel
+import com.example.androidproject.presentation.viewmodel.SimpleNotesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesListScreen(
+    viewModel: SimpleNotesViewModel,
     onNoteClick: (String) -> Unit,
-    onAddNoteClick: () -> Unit,
-    viewModel: NotesViewModel = viewModel(
-        factory = NotesViewModel.Factory(LocalContext.current)
-    )
+    onAddNoteClick: () -> Unit
 ) {
-    val notes by viewModel.notes.collectAsState()
+    // Используем правильный способ сбора State
+    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+
+    // Перезагружаем заметки при открытии экрана
+    LaunchedEffect(Unit) {
+        viewModel.loadNotes()
+    }
 
     Scaffold(
         topBar = {
@@ -40,16 +44,42 @@ fun NotesListScreen(
             }
         }
     ) { paddingValues ->
-        if (notes.isEmpty()) {
+        // Показать загрузку
+        if (isLoading && notes.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Нет заметок. Нажмите + чтобы создать")
+                CircularProgressIndicator()
             }
-        } else {
+        }
+        // Показать пустой список
+        else if (notes.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Нет заметок",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = "Нажмите + чтобы создать первую заметку",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+        // Показать список заметок
+        else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()

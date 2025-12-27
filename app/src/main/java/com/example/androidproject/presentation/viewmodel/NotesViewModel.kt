@@ -1,20 +1,31 @@
 package com.example.androidproject.presentation.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import com.example.androidproject.data.FileNotebook
 import com.example.androidproject.domain.Note
+import com.example.androidproject.domain.usecase.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class NotesViewModel(private val context: Context) : ViewModel() {
-    private val notebook = FileNotebook(context)
+@HiltViewModel
+class NotesViewModel @Inject constructor(
+    private val getAllNotesUseCase: GetAllNotesUseCase,
+    private val getNoteByIdUseCase: GetNoteByIdUseCase,
+    private val addNoteUseCase: AddNoteUseCase,
+    private val updateNoteUseCase: UpdateNoteUseCase,
+    private val deleteNoteUseCase: DeleteNoteUseCase
+) : ViewModel() {
 
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
-    val notes: StateFlow<List<Note>> = _notes
+    val notes: StateFlow<List<Note>> = _notes.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         loadNotes()
@@ -22,40 +33,64 @@ class NotesViewModel(private val context: Context) : ViewModel() {
 
     fun loadNotes() {
         viewModelScope.launch {
-            notebook.loadFromFile()
-            _notes.value = notebook.notes
+            getAllNotesUseCase()
+                .onStart { _isLoading.value = true }
+                .catch { error ->
+                    _error.value = "Ошибка загрузки: ${error.message}"
+                    _isLoading.value = false
+                }
+                .collect { notes ->
+                    _notes.value = notes
+                    _isLoading.value = false
+                }
         }
+    }
+
+    fun getNote(uid: String): Flow<Note?> {
+        return getNoteByIdUseCase(uid)
     }
 
     fun addNote(note: Note) {
         viewModelScope.launch {
-            notebook.addNote(note)
-            _notes.value = notebook.notes
+            _isLoading.value = true
+            try {
+                addNoteUseCase(note)
+                // Данные автоматически обновятся через Flow
+            } catch (e: Exception) {
+                _error.value = "Ошибка добавления: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun updateNote(note: Note) {
         viewModelScope.launch {
-            notebook.updateNote(note)
-            _notes.value = notebook.notes
+            _isLoading.value = true
+            try {
+                updateNoteUseCase(note)
+            } catch (e: Exception) {
+                _error.value = "Ошибка обновления: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    fun deleteNote(noteId: String) {
+    fun deleteNote(uid: String) {
         viewModelScope.launch {
-            notebook.removeNote(noteId)
-            _notes.value = notebook.notes
+            _isLoading.value = true
+            try {
+                deleteNoteUseCase(uid)
+            } catch (e: Exception) {
+                _error.value = "Ошибка удаления: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    fun getNote(noteId: String): Note? {
-        return notebook.getNote(noteId)
-    }
-
-    class Factory(private val context: Context) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            @Suppress("UNCHECKED_CAST")
-            return NotesViewModel(context) as T
-        }
+    fun clearError() {
+        _error.value = null
     }
 }
